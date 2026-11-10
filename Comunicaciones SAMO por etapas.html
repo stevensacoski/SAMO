@@ -1,0 +1,638 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Comunicaciones SAMO por etapas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: barra de control del demo (oscura) arriba + ventana simulada del sistema de facturación (Bootstrap 3, light) debajo. Tema único claro: reproduce un sistema de gobierno light-only. */
+:root{
+  color-scheme: light;
+  --page:#dfe3e8; --shell-fg:#e8edf1;
+  --ctrl:#26323a; --ctrl-2:#1c2127; --ctrl-line:#3a4954; --teal:#19b2c4; --teal-d:#0f8c9b;
+  --app-bg:#f4f5f6; --topbar:#54585c; --topbar-2:#4a4e52;
+  --card:#ffffff; --border:#dddddd; --border-2:#e7e7e7;
+  --text:#333333; --muted:#777777; --muted-2:#9aa0a6; --head:#2a2f33;
+  --primary:#337ab7; --primary-d:#2e6da4; --success:#4a9e4a; --success-bg:#eaf6ea;
+  --danger:#d9534f; --warn:#e0922f; --warn-bg:#fdf3e5; --info:#31859c;
+  --cat-norm:#337ab7; --cat-capac:#3f9e52; --cat-urg:#d9534f; --cat-record:#8a6d3b;
+  --good-box:#eef7ee; --good-line:#cfe8cf; --bad-box:#fdeeee; --bad-line:#f3cfcf;
+  --font: "Open Sans", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--text);font-family:var(--font);line-height:1.45;-webkit-font-smoothing:antialiased}
+.shell{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 40px}
+h1,h2,h3,h4{margin:0;color:var(--head);text-wrap:balance}
+p{margin:0}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---- barra de control del demo ---- */
+.ctrl{background:linear-gradient(180deg,var(--ctrl),var(--ctrl-2));color:var(--shell-fg);border-radius:10px 10px 0 0;padding:14px 16px;border:1px solid var(--ctrl-line);border-bottom:none}
+.ctrl .lead{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;margin-bottom:12px}
+.ctrl .lead h1{color:#fff;font-size:17px;font-weight:700;letter-spacing:.2px}
+.ctrl .lead .sub{color:#9fb0bb;font-size:12.5px}
+.ctrl-row{display:flex;flex-wrap:wrap;gap:16px 26px;align-items:flex-end}
+.ctrl-grp{display:flex;flex-direction:column;gap:6px;min-width:0}
+.ctrl-grp>span{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:#8ea0ac;font-weight:700}
+.seg{display:flex;flex-wrap:wrap;gap:6px;background:#161b20;padding:5px;border-radius:9px;border:1px solid #313d46}
+.seg button{appearance:none;border:1px solid transparent;background:transparent;color:#bcc8d0;font-family:inherit;font-size:13px;font-weight:600;padding:7px 13px;border-radius:7px;cursor:pointer;white-space:nowrap;transition:.12s}
+.seg button:hover{color:#fff;background:#222a31}
+.seg button[aria-selected="true"]{background:var(--teal);color:#06242a;border-color:var(--teal-d)}
+.seg.roles button[aria-selected="true"]{background:#e8edf1;color:#1c2127}
+.seg button .k{display:block;font-size:10.5px;font-weight:700;opacity:.8;letter-spacing:.03em}
+
+/* ---- franja "qué cambia" ---- */
+.changed{background:var(--ctrl-2);color:#cfdae1;border:1px solid var(--ctrl-line);border-top:none;border-bottom:none;padding:11px 16px;font-size:13px;display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center}
+.changed .tag{display:inline-flex;align-items:center;gap:6px;background:#12303a;color:#8fe6f0;border:1px solid #1c4a55;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600}
+.changed .tag.base{background:#2a2f36;color:#c6ccd2;border-color:#3a4954}
+.changed .cum{color:#8ea0ac;font-size:11.5px;font-style:italic;margin-left:auto}
+
+/* ---- ventana simulada ---- */
+.appwin{border:1px solid #c7ccd1;border-top:none;border-radius:0 0 10px 10px;overflow:hidden;background:var(--app-bg);box-shadow:0 10px 30px rgba(20,30,40,.14)}
+.app-top{background:linear-gradient(180deg,var(--topbar),var(--topbar-2));color:#fff;display:flex;align-items:center;gap:12px;padding:0 14px;height:52px}
+.app-top .burger{font-size:20px;line-height:1;opacity:.9}
+.logo{display:flex;align-items:center;gap:9px}
+.logo .mark{width:30px;height:30px;border:2px solid #fff;border-radius:5px;display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff;background:rgba(255,255,255,.06)}
+.logo .lt{font-size:11px;line-height:1.1;font-weight:700;letter-spacing:.3px}
+.logo .lt small{display:block;font-weight:400;opacity:.85;font-size:9.5px;letter-spacing:.2px}
+.app-top .spacer{flex:1}
+.app-top .usr{display:flex;align-items:center;gap:7px;font-size:13px;opacity:.95}
+.app-top .usr .circ{width:22px;height:22px;border-radius:50%;background:#cfd3d6;color:#54585c;display:grid;place-items:center;font-size:12px;font-weight:700}
+.bell{position:relative;cursor:pointer;width:34px;height:34px;border-radius:7px;display:grid;place-items:center;transition:.12s}
+.bell:hover{background:rgba(255,255,255,.12)}
+.bell svg{width:19px;height:19px;fill:#fff}
+.bell .bdg{position:absolute;top:2px;right:2px;min-width:17px;height:17px;padding:0 4px;background:var(--danger);color:#fff;border-radius:999px;font-size:10.5px;font-weight:800;display:grid;place-items:center;border:2px solid var(--topbar)}
+.app-body{padding:20px 22px 26px}
+@media(max-width:560px){.app-body{padding:16px 14px 20px}}
+.view-h{font-size:21px;font-weight:700;margin-bottom:3px}
+.view-sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+.rolepill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:999px;margin-bottom:12px}
+.rolepill.min{background:#eaf1f8;color:#2e6da4;border:1px solid #cfe0f0}
+.rolepill.emp{background:#eef5ee;color:#3f7e46;border:1px solid #cfe6cf}
+
+/* ---- bootstrap-3-ish ---- */
+.panel{background:var(--card);border:1px solid var(--border);border-radius:5px;margin-bottom:16px}
+.panel-h{padding:10px 14px;border-bottom:1px solid var(--border-2);font-weight:700;font-size:14px;color:var(--head);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.panel-h .r{margin-left:auto;display:flex;gap:8px;align-items:center}
+.panel-b{padding:14px}
+.panel-b.tight{padding:0}
+table.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tblwrap{overflow-x:auto}
+table.tbl th{text-align:left;background:#fafafa;border-bottom:2px solid #e3e3e3;color:#555;font-weight:700;padding:9px 11px;white-space:nowrap;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em}
+table.tbl td{border-bottom:1px solid #eee;padding:9px 11px;vertical-align:top}
+table.tbl tr:hover td{background:#fbfcfd}
+.clip{max-width:230px;color:#666;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rowclk{cursor:pointer}
+
+.btn{appearance:none;font-family:inherit;font-size:13px;font-weight:600;border-radius:4px;padding:7px 13px;cursor:pointer;border:1px solid transparent;display:inline-flex;align-items:center;gap:7px;line-height:1.3;transition:.12s;text-decoration:none}
+.btn svg{width:14px;height:14px;fill:currentColor}
+.btn-pri{background:var(--primary);border-color:var(--primary-d);color:#fff}
+.btn-pri:hover{background:var(--primary-d)}
+.btn-suc{background:var(--success);border-color:#3f883f;color:#fff}
+.btn-suc:hover{filter:brightness(.95)}
+.btn-def{background:#fff;border-color:#ccc;color:#444}
+.btn-def:hover{background:#f6f6f6}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn[disabled]{opacity:.55;cursor:not-allowed}
+
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;letter-spacing:.02em}
+.chip.norm{background:#eaf1f8;color:var(--cat-norm)}
+.chip.capac{background:#eaf6ec;color:var(--cat-capac)}
+.chip.urg{background:#fdecea;color:var(--cat-urg)}
+.chip.record{background:#f6f0e4;color:var(--cat-record)}
+.chip.prio{background:#f3eefa;color:#6b4fa0}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none}
+.dot.on{background:var(--danger)} .dot.off{background:#cfd4d8}
+
+.callout{border-radius:6px;padding:11px 13px;font-size:13px;display:flex;gap:9px;align-items:flex-start;margin:4px 0 16px}
+.callout .ic{flex:none;width:18px;height:18px;margin-top:1px}
+.callout .ic svg{width:18px;height:18px;display:block}
+.callout.good{background:var(--good-box);border:1px solid var(--good-line);color:#2d6b33}
+.callout.good .ic svg{fill:var(--success)}
+.callout.bad{background:var(--bad-box);border:1px solid var(--bad-line);color:#9a3a37}
+.callout.bad .ic svg{fill:var(--danger)}
+.callout b{color:inherit}
+
+/* KPIs acuse */
+.kpis{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.kpi{flex:1;min-width:120px;background:#fafbfc;border:1px solid var(--border-2);border-radius:6px;padding:11px 13px}
+.kpi .n{font-size:24px;font-weight:800;color:var(--head);line-height:1}
+.kpi .l{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:5px;font-weight:600}
+.kpi.ok .n{color:var(--success)} .kpi.no .n{color:var(--danger)}
+.prog{height:9px;border-radius:999px;background:#e9ecef;overflow:hidden;margin-top:7px}
+.prog>i{display:block;height:100%;background:var(--success);border-radius:999px}
+.readmini{font-size:12px;color:var(--muted);margin-top:4px}
+
+.estlist{list-style:none;margin:0;padding:0;border:1px solid var(--border-2);border-radius:6px;overflow:hidden}
+.estlist li{display:flex;align-items:center;gap:10px;padding:9px 12px;font-size:13px;border-bottom:1px solid #f0f0f0}
+.estlist li:last-child{border-bottom:none}
+.estlist .who{font-weight:600;color:#444}
+.estlist .st{margin-left:auto;font-size:12px;font-variant-numeric:tabular-nums}
+.estlist .st.leido{color:var(--success)} .estlist .st.noleido{color:var(--muted-2)} .estlist .st.conf{color:#6b4fa0;font-weight:700}
+
+/* tabs del panel */
+.ptabs{display:flex;gap:4px}
+.ptabs button{appearance:none;border:1px solid transparent;background:transparent;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--muted);padding:5px 11px;border-radius:999px;cursor:pointer}
+.ptabs button[aria-selected="true"]{background:#eef2f5;color:var(--head)}
+
+/* hilo de respuestas */
+.thread{display:flex;flex-direction:column;gap:10px}
+.msg{border:1px solid var(--border-2);border-radius:7px;padding:10px 12px;background:#fff}
+.msg .mh{font-size:12px;color:var(--muted);margin-bottom:3px;display:flex;gap:8px;flex-wrap:wrap}
+.msg .mh b{color:#444}
+.msg .mt{font-size:13.5px;color:#333}
+.reply-row{display:flex;gap:8px;margin-top:8px}
+.reply-row .btn{flex:none}
+
+/* ---- inicio del empleado + popup ---- */
+.inicio-h{font-size:23px;font-weight:700;margin:4px 0 14px}
+.ambito{display:flex;gap:14px;flex-wrap:wrap}
+.ambito .card2{flex:1;min-width:190px;background:#fff;border:1px solid var(--border);border-top:4px solid var(--primary);border-radius:6px;padding:22px;text-align:center}
+.ambito .card2.g{border-top-color:var(--warn)}
+.ambito .card2 .t{font-size:22px;font-weight:700;color:#444;margin-top:6px}
+.ambito .card2 .d{font-size:12.5px;color:var(--muted);margin-top:4px}
+.stage-wrap{position:relative}
+.ov{position:absolute;inset:0;background:rgba(40,46,52,.55);display:grid;place-items:start center;padding:26px 14px;z-index:5;border-radius:4px}
+.popup{background:#fff;border-radius:7px;max-width:560px;width:100%;box-shadow:0 18px 50px rgba(0,0,0,.35);overflow:hidden}
+.popup .ph{display:flex;align-items:center;gap:8px;padding:13px 16px;border-bottom:1px solid #e8e8e8;font-weight:700;color:#333;font-size:15px}
+.popup .ph .x{margin-left:auto;color:#aaa;cursor:pointer;font-size:20px;line-height:1}
+.popup .pb{padding:15px 16px;font-size:12.5px;color:#555;max-height:260px;overflow:auto;white-space:pre-wrap;line-height:1.5}
+.popup .pf{padding:11px 16px;border-top:1px solid #e8e8e8;display:flex;justify-content:flex-end;gap:8px;background:#fafafa}
+.rawurl{color:#2e6da4;word-break:break-all}
+.muted-note{color:var(--muted);font-size:13px;font-style:italic;margin-top:10px;display:flex;gap:7px;align-items:center}
+
+/* detalle receptor */
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:16px}
+@media(max-width:720px){.split{grid-template-columns:1fr}}
+.bandeja{list-style:none;margin:0;padding:0}
+.bandeja li{border:1px solid var(--border-2);border-radius:7px;padding:10px 12px;margin-bottom:9px;cursor:pointer;background:#fff;display:flex;gap:10px;align-items:flex-start;transition:.1s}
+.bandeja li:hover{border-color:#cdd6de;background:#fbfcfd}
+.bandeja li[aria-selected="true"]{border-color:var(--primary);box-shadow:0 0 0 2px #e3eefa}
+.bandeja .bi-t{font-size:13.5px;color:#333;font-weight:600}
+.bandeja li.unread .bi-t{font-weight:800}
+.bandeja .bi-m{font-size:11.5px;color:var(--muted);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.detail{border:1px solid var(--border);border-radius:7px;background:#fff;overflow:hidden}
+.detail .dh{padding:13px 15px;border-bottom:1px solid var(--border-2)}
+.detail .dh .dt{font-size:16px;font-weight:700;color:var(--head)}
+.detail .dh .dm{font-size:12px;color:var(--muted);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.detail .db{padding:15px}
+.detail .db .plain{white-space:pre-wrap;font-size:13px;color:#444;line-height:1.5}
+.acuse-line{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--success);font-weight:600;margin-top:12px;padding-top:11px;border-top:1px dashed #e3e3e3}
+.acuse-line svg{width:15px;height:15px;fill:var(--success)}
+.confirm-box{margin-top:12px;padding:12px;border:1px solid #f0e6c8;background:#fdf9ec;border-radius:7px}
+.confirm-box .ct{font-size:12.5px;color:#8a6d3b;margin-bottom:9px;font-weight:600}
+.reply-box{margin-top:12px;padding-top:12px;border-top:1px solid var(--border-2)}
+.reply-box textarea{width:100%;border:1px solid #ccc;border-radius:5px;padding:9px;font-family:inherit;font-size:13px;resize:vertical;min-height:58px}
+.reply-box .rb-h{font-size:12px;font-weight:700;color:#555;margin-bottom:6px}
+
+/* taller con formato (etapa 3) */
+.talleres{display:flex;flex-direction:column;gap:9px;margin:4px 0 2px}
+.taller{border:1px solid #e7eef0;border-left:3px solid var(--cat-capac);border-radius:6px;padding:10px 12px;background:#fbfdfc}
+.taller .tt{font-weight:700;color:#2f6b3c;font-size:13.5px}
+.taller .tx{font-size:12.5px;color:#555;margin:3px 0 6px}
+.taller .meta{display:flex;gap:7px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;background:#eef4ef;color:#3f7e46;border-radius:999px;padding:2px 8px}
+.pill.new{background:#fdecea;color:var(--danger)}
+.attach{display:inline-flex;align-items:center;gap:8px;border:1px solid #d9e2e7;background:#f3f7f9;border-radius:6px;padding:8px 11px;font-size:12.5px;color:#2e6da4;margin-top:10px}
+.attach svg{width:16px;height:16px;fill:#5a6b76;flex:none}
+
+/* form crear (ministerio etapa 2/3) */
+.fg{margin-bottom:12px}
+.fg>label{display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:5px}
+.inp,.sel,.ta{width:100%;border:1px solid #ccc;border-radius:5px;padding:8px 10px;font-family:inherit;font-size:13px;background:#fff;color:#333}
+.inp[readonly]{background:#f3f3f3;color:#777}
+.ta{min-height:72px;resize:vertical}
+.chkrow{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid #e7e7e7;border-radius:6px;background:#fafbfc;font-size:13px;margin-bottom:10px}
+.chkrow input{width:16px;height:16px}
+.chkrow.hot{border-color:#cfe0f0;background:#f1f7fd}
+.chkrow .nw{margin-left:auto}
+.catsel{display:flex;gap:7px;flex-wrap:wrap}
+.catsel .opt{border:1px solid #d7d7d7;border-radius:999px;padding:4px 11px;font-size:12px;font-weight:600;color:#666;cursor:pointer}
+.catsel .opt[aria-selected="true"]{color:#fff}
+.catsel .opt.norm[aria-selected="true"]{background:var(--cat-norm);border-color:var(--cat-norm)}
+.catsel .opt.capac[aria-selected="true"]{background:var(--cat-capac);border-color:var(--cat-capac)}
+.catsel .opt.urg[aria-selected="true"]{background:var(--cat-urg);border-color:var(--cat-urg)}
+.catsel .opt.record[aria-selected="true"]{background:var(--cat-record);border-color:var(--cat-record)}
+.rte{border:1px solid #ccc;border-radius:5px;overflow:hidden}
+.rte .bar{display:flex;gap:2px;padding:5px;border-bottom:1px solid #e3e3e3;background:#f7f8f9;flex-wrap:wrap}
+.rte .bar b,.rte .bar span{display:grid;place-items:center;width:28px;height:26px;border-radius:4px;font-size:13px;color:#555;cursor:pointer;border:1px solid transparent}
+.rte .bar b:hover,.rte .bar span:hover{background:#e9edf0;border-color:#dde3e7}
+.rte .area{padding:10px;min-height:66px;font-size:13px;color:#333}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.grid2{grid-template-columns:1fr}}
+
+.foot{margin-top:18px;font-size:12px;color:#5c6b75;display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;padding-left:2px}
+.foot code{font-family:var(--mono);font-size:11.5px;background:#eef1f3;padding:1px 6px;border-radius:4px;color:#3a4b56}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#26323a;color:#eaf6ff;padding:10px 16px;border-radius:8px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.3);z-index:50;max-width:92vw}
+</style>
+
+<div class="shell">
+  <div class="ctrl">
+    <div class="lead">
+      <h1>Comunicaciones internas — mejora por etapas</h1>
+      <span class="sub">Sistema de facturación hospitalaria · Ministerio → establecimientos</span>
+    </div>
+    <div class="ctrl-row">
+      <div class="ctrl-grp">
+        <span>Etapa</span>
+        <div class="seg stages" role="tablist" id="segStage"></div>
+      </div>
+      <div class="ctrl-grp">
+        <span>Rol / vista</span>
+        <div class="seg roles" role="tablist" id="segRole"></div>
+      </div>
+    </div>
+  </div>
+  <div class="changed" id="changed"></div>
+  <div class="appwin">
+    <div class="app-top">
+      <span class="burger">☰</span>
+      <span class="logo"><span class="mark">P</span><span class="lt">BUENOS AIRES<small>PROVINCIA</small></span></span>
+      <span class="spacer"></span>
+      <span id="bellSlot"></span>
+      <span class="usr"><span class="circ" id="usrInitial">E</span><span id="usrName">33813990</span></span>
+    </div>
+    <div class="app-body" id="appBody"></div>
+  </div>
+  <div class="foot">
+    <svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:1px" fill="#7a8894"><path d="M9 21h6v-2H9v2zm3-19C8.1 2 5 5.1 5 9c0 2.4 1.2 4.5 3 5.7V17h8v-2.3c1.8-1.3 3-3.4 3-5.7 0-3.9-3.1-7-7-7z"/></svg>
+    <span>Todo esto es viable sobre el stack actual (<code>ASP.NET MVC + jQuery/Bootstrap 3/DataTables</code>). El acuse y las respuestas son tablas nuevas; la campanita reusa el patrón que ya existe en <code>/ConciliacionPortal/PendientesCount</code>. Prototipo de demostración — los datos son de ejemplo.</span>
+  </div>
+</div>
+
+<script>
+var STAGES=[
+  {k:"hoy",n:"Hoy",d:"actual"},
+  {k:"e1", n:"Etapa 1",d:"acuse + bandeja"},
+  {k:"e2", n:"Etapa 2",d:"confirmar + responder"},
+  {k:"e3", n:"Etapa 3",d:"categoría + formato + rol"}
+];
+var ROLES=[
+  {k:"min",n:"Ministerio",d:"emisor"},
+  {k:"emp",n:"Empleado",d:"receptor"}
+];
+var CHANGED={
+  hoy:{base:"Estado actual: aviso de texto plano + Pop Up al entrar.",tags:["Sin acuse de lectura","Sin respuesta","Se pierde al cerrar"],bad:true},
+  e1:{base:"Etapa 1 — visibilidad:",tags:["➕ Acuse de lectura (quién lo vio y cuándo)","➕ Bandeja persistente con 🔔 contador"]},
+  e2:{base:"Etapa 2 — ida y vuelta:",tags:["➕ Confirmación obligatoria de lectura","➕ Respuesta / consulta dentro del sistema"]},
+  e3:{base:"Etapa 3 — contenido y alcance:",tags:["➕ Categoría y prioridad","➕ Texto con formato + adjuntos","➕ Segmentación por rol / perfil"]}
+};
+
+var state={stage:"hoy",role:"min"};
+var ui={};
+function resetUi(){ui={popupClosed:false,ptab:"acuse",openNotif:"capac",confirmed:false,replied:false};}
+resetUi();
+
+/* ---------- iconos ---------- */
+var IC={
+  bell:'<svg viewBox="0 0 24 24"><path d="M12 22a2.2 2.2 0 0 0 2.2-2.1H9.8A2.2 2.2 0 0 0 12 22zm6.5-6v-5c0-3.1-1.9-5.6-4.8-6.3V4a1.7 1.7 0 0 0-3.4 0v.7C7.4 5.4 5.5 7.9 5.5 11v5l-1.8 1.8v.9h16.6v-.9L18.5 16z"/></svg>',
+  check:'<svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>',
+  warn:'<svg viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>',
+  clip:'<svg viewBox="0 0 24 24"><path d="M16.5 6v11.5a4 4 0 0 1-8 0V5a2.5 2.5 0 0 1 5 0v10.5a1 1 0 0 1-2 0V6H10v9.5a2.5 2.5 0 0 0 5 0V5a4 4 0 0 0-8 0v12.5a5.5 5.5 0 0 0 11 0V6h-1.5z"/></svg>',
+  pdf:'<svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm8 1.5V8h4.5L14 3.5z"/></svg>',
+  send:'<svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>'
+};
+
+/* ---------- datos mock ---------- */
+var CAPTEXTO='📌 CAPACITACIONES VIRTUALES 📅 NOVIEMBRE\n\n'+
+'Taller 1: Integración SAMO-HSI: nuevas estrategias para identificar, registrar, facturar, notificar y cobrar. Te enseñamos a usar de forma óptima la integración de sistemas informáticos para reducir tiempos y automatizar tareas. 📅 Miércoles 18/11 ⏰ 9 hs* ----------\n'+
+'Taller 2: Introducción al Sistema de Facturación Electrónica SAMO. Repasamos los usos principales del sistema de facturación electrónica. 📅 Martes 17/11 ⏰ 9 hs. ----------\n'+
+'Taller 3: Estrategias y procedimientos de gestión de cobros. Te enseñamos el procedimiento para elaborar expedientes de gestión de cobros de facturas vencidas. 📅 Martes 10 y 24/11 ⏰ 11 hs ----------\n'+
+'Taller 4: Herramientas para optimizar el uso del Nomenclador SAMO [ NUEVO ]. Recorremos todo el nomenclador y trazamos estrategias para optimizar el recupero de costos. 📅 Jueves 26/11 ⏰ 9:30 hs ----------\n'+
+'📌 Para participar deberán registrarse en cada una mediante el siguiente formulario: https://docs.google.com/forms/d/e/1FAIpQLScCsZo9z4h5r4gMM9cF3-1hSUWl8-hrYn_zq9QfMRiQi9w2DA/viewform ----------\n'+
+'📞 Consultas Departamento de Contralor Técnico Administrativo (0221) 429-2897 / (0221) 429-2933';
+
+var LISTADO=[
+  {f:"03/06/2026",h:"10/06/2026",dest:"PAMI · Todos",tit:"Refacturación Mayo/24 a PAMI",cat:"norm",prio:"Alta",leidas:34,total:120,txt:"AQUELLOS HOSPITALES QUE ESTEN REFACTURANDO MAYO/24 A PAMI (CON NOMENCLADOR HPGD), POR FAVOR AGUARDEN Y \"NO\" ENVIEN LA FACTURACION..."},
+  {f:"01/11/2026",h:"30/11/2026",dest:"Todos",tit:"Capacitaciones Virtuales Noviembre",cat:"capac",prio:"Media",leidas:58,total:210,popup:true,txt:"📌 CAPACITACIONES VIRTUALES 📅 NOVIEMBRE — Taller 1: Integración SAMO-HSI..."},
+  {f:"05/11/2026",h:"12/11/2026",dest:"Región Sanitaria VI",tit:"Cierre de carga de Octubre",cat:"record",prio:"Media",leidas:12,total:40,txt:"Se recuerda que el cierre de carga de atenciones de octubre opera el 12/11. Pasada esa fecha no se habilitan altas."}
+];
+var CATLBL={norm:"Normativa",capac:"Capacitación",urg:"Urgente",record:"Recordatorio"};
+
+var ACUSE=[
+  {who:"H.I.Z. San Martín (La Plata)",st:"Leído",when:"10/11 14:32 · M. Gómez",conf:true},
+  {who:"Hospital Rossi (La Plata)",st:"Leído",when:"09/11 11:05 · P. Díaz",conf:false},
+  {who:"C.A.P.S. Guernica",st:"Leído",when:"10/11 08:12 · L. Sosa",conf:true},
+  {who:"Hospital Evita (Lanús)",st:"No leído",when:"—",conf:false},
+  {who:"Hospital Gutiérrez (La Plata)",st:"No leído",when:"—",conf:false},
+  {who:"Hospital El Cruce (F. Varela)",st:"No leído",when:"—",conf:false}
+];
+var RESPUESTAS=[
+  {who:"H.I.Z. San Martín",when:"10/11 15:10",txt:"¿El Taller 3 queda grabado? No podemos cubrir el martes 11hs."},
+  {who:"Hospital Evita",when:"09/11 16:40",txt:"Confirmamos inscripción de 3 agentes de facturación."},
+  {who:"C.A.P.S. Guernica",when:"10/11 09:02",txt:"El link del formulario nos da error, ¿pueden reenviarlo?"}
+];
+var BANDEJA=[
+  {k:"refac",tit:"Refacturación Mayo/24 a PAMI",cat:"norm",fecha:"03/06",unread:false,mand:true},
+  {k:"capac",tit:"Capacitaciones Virtuales Noviembre",cat:"capac",fecha:"01/11",unread:true,mand:false},
+  {k:"cierre",tit:"Cierre de carga de Octubre",cat:"record",fecha:"05/11",unread:false,mand:false}
+];
+
+/* ---------- helpers ---------- */
+function el(id){return document.getElementById(id);}
+function pct(a,b){return Math.round(a/b*100);}
+function toast(t){var d=document.createElement('div');d.className='toast';d.textContent=t;document.body.appendChild(d);setTimeout(function(){d.remove();},2600);}
+
+/* ---------- barra de control ---------- */
+function buildCtrl(){
+  el('segStage').innerHTML=STAGES.map(function(s){
+    return '<button role="tab" data-stage="'+s.k+'" aria-selected="'+(state.stage===s.k)+'">'+s.n+'<span class="k">'+s.d+'</span></button>';
+  }).join('');
+  el('segRole').innerHTML=ROLES.map(function(r){
+    return '<button role="tab" data-role="'+r.k+'" aria-selected="'+(state.role===r.k)+'">'+r.n+'<span class="k">'+r.d+'</span></button>';
+  }).join('');
+}
+function buildChanged(){
+  var c=CHANGED[state.stage];
+  var tags=c.tags.map(function(t){return '<span class="tag'+(c.bad?' base':'')+'">'+t+'</span>';}).join('');
+  el('changed').innerHTML='<span class="tag base">'+c.base+'</span>'+tags+
+    '<span class="cum">'+(state.stage==="hoy"?"":"Cada etapa suma a la anterior")+'</span>';
+}
+
+/* ---------- render raíz ---------- */
+function render(){
+  buildCtrl();buildChanged();
+  var body=el('appBody');
+  var showBell=(state.role==="emp" && state.stage!=="hoy");
+  el('usrName').textContent = state.role==="min" ? "33813990 · SAMO" : "M. Gómez · H.I.Z. San Martín";
+  el('usrInitial').textContent = state.role==="min" ? "E" : "M";
+  el('bellSlot').innerHTML = showBell ? bellHTML() : "";
+  body.innerHTML = (state.role==="min") ? viewMin() : viewEmp();
+  wire(body);
+}
+function bellHTML(){
+  var unread = BANDEJA.filter(function(b){return b.unread;}).length - (ui.popupClosed?1:0);
+  if(unread<0)unread=0;
+  return '<span class="bell" data-act="bell">'+IC.bell+(unread>0?'<span class="bdg num">'+unread+'</span>':'')+'</span>';
+}
+
+/* =========================================================
+   MINISTERIO (emisor)
+   ========================================================= */
+function viewMin(){
+  var h='<span class="rolepill min">● Ministerio · emisor (SAMO)</span>';
+  h+='<div class="view-h">Listado de Notificaciones</div>';
+  h+='<div class="view-sub">Comunicaciones enviadas a los establecimientos.</div>';
+
+  // callout por etapa
+  if(state.stage==="hoy")
+    h+=callout("bad",IC.warn,"El modelo sólo guarda <b>a quién iba</b> y <b>qué decía</b>. No hay ninguna columna de estado por destinatario: <b>no se puede saber quién lo leyó</b>.");
+  else if(state.stage==="e1")
+    h+=callout("good",IC.check,"Nueva columna <b>Leídas</b> y panel de <b>Acuse de lectura</b>: el emisor ve quién lo vio, cuándo, y puede <b>recordar a los que faltan</b>.");
+  else if(state.stage==="e2")
+    h+=callout("good",IC.check,"El acuse ahora distingue <b>Leída</b> de <b>Confirmada</b>, y las <b>respuestas</b> de los hospitales llegan acá — no por Google Form ni teléfono.");
+  else
+    h+=callout("good",IC.check,"Al <b>crear</b> ya se elige <b>categoría, prioridad, formato y adjuntos</b>, y se puede segmentar <b>por perfil/rol</b> además de por establecimiento.");
+
+  // formulario crear (resumen) para e2/e3
+  if(state.stage==="e3") h+=crearFull();
+  else if(state.stage==="e2") h+=crearE2();
+
+  // tabla
+  h+='<div class="panel"><div class="panel-h">Notificaciones'+
+     (state.stage==="hoy"?'':' <span class="chip prio" style="background:#eef2f5;color:#667">reciente ↑</span>')+
+     '<div class="r"><span class="btn btn-def btn-sm">Copy</span><span class="btn btn-def btn-sm">Excel</span><span class="btn btn-def btn-sm">+ Cargar</span></div></div>';
+  h+='<div class="panel-b tight"><div class="tblwrap"><table class="tbl"><thead><tr>'+
+     '<th>Fecha</th><th>Hasta</th><th>Destino</th>'+
+     (state.stage==="e3"?'<th>Categoría</th>':'')+
+     '<th>Título</th><th>Texto</th>'+
+     (state.stage==="hoy"?'':'<th>Leídas</th>')+
+     '</tr></thead><tbody>';
+  LISTADO.forEach(function(n,i){
+    h+='<tr>'+
+      '<td class="num">'+n.f+'</td><td class="num">'+n.h+'</td><td>'+n.dest+'</td>'+
+      (state.stage==="e3"?'<td><span class="chip '+n.cat+'">'+CATLBL[n.cat]+'</span></td>':'')+
+      '<td><b style="color:#3a4b56">'+n.tit+'</b></td>'+
+      '<td><div class="clip">'+n.txt+'</div></td>'+
+      (state.stage==="hoy"?'':'<td>'+leidasCell(n)+'</td>')+
+      '</tr>';
+  });
+  h+='</tbody></table></div></div></div>';
+
+  // panel de acuse (e1+)
+  if(state.stage!=="hoy") h+=acusePanel();
+  return h;
+}
+function leidasCell(n){
+  var p=pct(n.leidas,n.total);
+  return '<div class="num" style="font-weight:700;color:'+(p>=70?'#3f883f':p>=40?'#e0922f':'#d9534f')+'">'+n.leidas+'/'+n.total+'</div>'+
+         '<div class="prog" style="width:92px"><i style="width:'+p+'%"></i></div>'+
+         '<div class="readmini num">'+p+'% leído</div>';
+}
+function acusePanel(){
+  var n=LISTADO[1]; // capacitaciones
+  var leidas=n.leidas,total=n.total,sinleer=total-leidas,conf=118;
+  var h='<div class="panel"><div class="panel-h">Acuse de lectura — «'+n.tit+'»';
+  if(state.stage!=="e1"){
+    h+='<div class="r"><div class="ptabs">'+
+       '<button data-ptab="acuse" aria-selected="'+(ui.ptab==="acuse")+'">Acuse</button>'+
+       '<button data-ptab="resp" aria-selected="'+(ui.ptab==="resp")+'">Respuestas ('+RESPUESTAS.length+')</button>'+
+       '</div></div>';
+  }
+  h+='</div><div class="panel-b">';
+
+  if(state.stage!=="e1" && ui.ptab==="resp"){
+    h+='<div class="thread">'+RESPUESTAS.map(function(r){
+      return '<div class="msg"><div class="mh"><b>'+r.who+'</b><span class="num">'+r.when+'</span></div>'+
+             '<div class="mt">'+r.txt+'</div>'+
+             '<div class="reply-row"><span class="btn btn-def btn-sm">Responder</span></div></div>';
+    }).join('')+'</div>';
+    h+='<div class="muted-note" style="margin-top:12px">Antes esto llegaba por teléfono o por el Google Form. Ahora queda asociado a la notificación.</div>';
+    h+='</div></div>';
+    return h;
+  }
+
+  // KPIs
+  h+='<div class="kpis">'+
+     '<div class="kpi"><div class="n num">'+total+'</div><div class="l">Enviada a</div></div>'+
+     '<div class="kpi ok"><div class="n num">'+leidas+'</div><div class="l">Leída ('+pct(leidas,total)+'%)</div></div>'+
+     (state.stage!=="e1"?'<div class="kpi" style="--head:#6b4fa0"><div class="n num" style="color:#6b4fa0">'+conf+'</div><div class="l">Confirmada</div></div>':'')+
+     '<div class="kpi no"><div class="n num">'+sinleer+'</div><div class="l">Sin leer</div></div>'+
+     '</div>';
+  // lista establecimientos
+  h+='<ul class="estlist">'+ACUSE.map(function(a){
+    var cls=a.st==="Leído"?"leido":"noleido";
+    var txt=a.st+(a.when!=="—"?' · '+a.when:'');
+    if(state.stage!=="e1" && a.conf) {cls="conf";txt="Confirmó · "+a.when;}
+    return '<li><span class="dot '+(a.st==="Leído"?"off":"on")+'" style="'+(a.st==="Leído"?"background:#4a9e4a":"")+'"></span>'+
+           '<span class="who">'+a.who+'</span><span class="st '+cls+' num">'+txt+'</span></li>';
+  }).join('')+'</ul>';
+  h+='<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">'+
+     '<span class="btn btn-pri" data-act="recordar">Recordar a los que no leyeron ('+sinleer+')</span>'+
+     '<span class="btn btn-def">Exportar acuse</span>'+
+     '</div>';
+  h+='</div></div>';
+  return h;
+}
+function crearE2(){
+  return '<div class="panel"><div class="panel-h">Crear notificación <span class="chip capac" style="background:#eef2f5;color:#667">formulario</span></div><div class="panel-b">'+
+    '<div class="grid2"><div class="fg"><label>Destino</label><input class="inp" value="Todos los establecimientos" readonly></div>'+
+    '<div class="fg"><label>Vigencia</label><input class="inp num" value="10/11/2026 → 30/11/2026" readonly></div></div>'+
+    '<div class="chkrow"><input type="checkbox" checked disabled><span>Mostrar como <b>Pop Up</b> al ingresar</span></div>'+
+    '<div class="chkrow hot"><input type="checkbox" checked disabled><span>✔ <b>Requiere confirmación de lectura</b> <span style="color:#777">(el usuario debe confirmar que leyó)</span></span><span class="nw"><span class="chip norm">nuevo</span></span></div>'+
+    '</div></div>';
+}
+function crearFull(){
+  return '<div class="panel"><div class="panel-h">Crear notificación <span class="chip capac" style="background:#eef2f5;color:#667">formulario ampliado</span></div><div class="panel-b">'+
+    '<div class="grid2">'+
+      '<div class="fg"><label>Categoría</label><div class="catsel">'+
+        '<span class="opt norm">Normativa</span><span class="opt capac" aria-selected="true">Capacitación</span>'+
+        '<span class="opt urg">Urgente</span><span class="opt record">Recordatorio</span></div></div>'+
+      '<div class="fg"><label>Prioridad</label><select class="sel"><option>Media</option><option>Alta</option><option>Baja</option></select></div>'+
+    '</div>'+
+    '<div class="grid2">'+
+      '<div class="fg"><label>Destino — establecimiento</label><input class="inp" value="Todos" readonly></div>'+
+      '<div class="fg"><label>Destino — perfil / rol <span class="chip norm">nuevo</span></label><select class="sel"><option>Facturador + Jefe de facturación</option><option>Todos los perfiles</option><option>Solo Jefe de facturación</option><option>Auditor</option></select></div>'+
+    '</div>'+
+    '<div class="fg"><label>Título</label><input class="inp" value="Capacitaciones Virtuales Noviembre"></div>'+
+    '<div class="fg"><label>Texto <span style="color:#777;font-weight:400">— con formato</span></label>'+
+      '<div class="rte"><div class="bar"><b style="font-weight:800">B</b><b style="font-style:italic;font-weight:400">i</b><span>•</span><span>1.</span><span title="Enlace como botón">🔗</span></div>'+
+      '<div class="area">Cronograma de los 4 talleres de noviembre. Inscripción con el botón de abajo.</div></div></div>'+
+    '<div class="fg"><label>Adjuntos <span class="chip norm">nuevo</span></label>'+
+      '<span class="attach">'+IC.pdf+' Cronograma_Capacitaciones_Noviembre.pdf <span style="color:#999">· 84 KB</span></span></div>'+
+    '<div class="chkrow"><input type="checkbox" checked disabled><span>Mostrar como <b>Pop Up</b></span>'+
+      '<span class="nw"><label style="display:inline-flex;gap:6px;align-items:center;font-weight:600"><input type="checkbox" disabled> Requiere confirmación</label></span></div>'+
+    '</div></div>';
+}
+
+/* =========================================================
+   EMPLEADO (receptor)
+   ========================================================= */
+function viewEmp(){
+  if(state.stage==="hoy") return empHoy();
+  return empBandeja();
+}
+function empHoy(){
+  var h='<span class="rolepill emp">● Empleado · receptor (H.I.Z. San Martín)</span>';
+  h+='<div class="stage-wrap">';
+  h+='<div class="inicio-h">Inicio</div><h3 style="font-weight:700;color:#444;margin-bottom:14px">¿En qué ámbito querés trabajar?</h3>'+
+     '<div class="ambito"><div class="card2"><div class="t">Ambulatorio</div><div class="d">Consultas y atenciones programadas</div></div>'+
+     '<div class="card2 g"><div class="t">Guardia</div><div class="d">Atenciones de urgencia</div></div></div>';
+  if(!ui.popupClosed){
+    h+='<div class="ov"><div class="popup">'+
+       '<div class="ph">📌 CAPACITACIONES VIRTUALES 📅 NOVIEMBRE <span class="x" data-act="closePopup">×</span></div>'+
+       '<div class="pb">'+CAPTEXTO.replace('https://docs.google.com/forms/d/e/1FAIpQLScCsZo9z4h5r4gMM9cF3-1hSUWl8-hrYn_zq9QfMRiQi9w2DA/viewform','<span class="rawurl">https://docs.google.com/forms/d/e/1FAIpQLScCsZo9z4h5r4gMM9cF3-1hSUWl8-hrYn_zq9QfMRiQi9w2DA/viewform</span>')+'</div>'+
+       '<div class="pf"><span class="btn btn-def" data-act="closePopup">Cerrar</span></div>'+
+       '</div></div>';
+  } else {
+    h+='<div class="muted-note">'+IC_inline(IC.warn,'#d9a')+' Se cerró el aviso. <b>No quedó ningún registro</b> de que lo viste, ni forma de volver a encontrarlo.</div>';
+  }
+  h+='</div>';
+  h+=callout("bad",IC.warn,"Hoy el único canal es este modal: un botón <b>Cerrar</b> y nada más. Si lo cerrás sin leer, se perdió — y el Ministerio nunca sabe si llegó.");
+  return h;
+}
+function IC_inline(svg,color){return '<span style="display:inline-block;width:15px;height:15px;vertical-align:-2px">'+svg.replace('<svg','<svg fill="'+(color||'#999')+'"')+'</span>';}
+
+function empBandeja(){
+  var h='<span class="rolepill emp">● Empleado · receptor (H.I.Z. San Martín)</span>';
+  h+='<div class="view-h">Mis notificaciones</div>';
+  h+='<div class="view-sub">Comunicaciones del Ministerio. Se acceden desde la 🔔 del encabezado.</div>';
+
+  if(state.stage==="e1")
+    h+=callout("good",IC.check,"El aviso <b>ya no se pierde</b>: queda en la bandeja y la 🔔 marca los no leídos. Al abrirlo se <b>registra la lectura</b> automáticamente.");
+  else if(state.stage==="e2")
+    h+=callout("good",IC.check,"Ahora podés <b>confirmar</b> la lectura de lo importante y <b>responder/consultar</b> acá mismo, sin salir al Google Form ni llamar por teléfono.");
+  else
+    h+=callout("good",IC.check,"El aviso llega <b>con formato</b>, con <b>chip de categoría</b> y botón real de <b>Inscribirme</b> + el <b>PDF adjunto</b> — en vez de una pared de texto con un link pegado.");
+
+  h+='<div class="split"><div><ul class="bandeja">'+BANDEJA.map(function(b){
+    var unread=b.unread && !(b.k==="capac"&&ui.popupClosed);
+    return '<li class="'+(unread?'unread':'')+'" data-notif="'+b.k+'" aria-selected="'+(ui.openNotif===b.k)+'">'+
+      '<span class="dot '+(unread?'on':'off')+'" style="margin-top:5px;'+(unread?'':'background:#4a9e4a')+'"></span>'+
+      '<div style="min-width:0"><div class="bi-t">'+b.tit+'</div>'+
+      '<div class="bi-m">'+(state.stage==="e3"?'<span class="chip '+b.cat+'">'+CATLBL[b.cat]+'</span>':'')+
+      '<span class="num">'+b.fecha+'</span>'+(b.mand?'<span class="chip urg" style="background:#f6f0e4;color:#8a6d3b">requiere confirmar</span>':'')+'</div></div></li>';
+  }).join('')+'</ul></div>';
+  h+='<div>'+empDetail()+'</div></div>';
+  return h;
+}
+function empDetail(){
+  var b=null;BANDEJA.forEach(function(x){if(x.k===ui.openNotif)b=x;});
+  if(!b)return '';
+  var h='<div class="detail"><div class="dh"><div class="dt">'+b.tit+'</div><div class="dm">'+
+        (state.stage==="e3"?'<span class="chip '+b.cat+'">'+CATLBL[b.cat]+'</span><span class="chip prio">Prioridad '+(b.mand?'Alta':'Media')+'</span>':'')+
+        '<span class="num">Vigente hasta 30/11/2026</span></div></div><div class="db">';
+
+  if(b.k==="capac" && state.stage==="e3") h+=capacFormateado();
+  else if(b.k==="capac") h+='<div class="plain">'+CAPTEXTO+'</div>';
+  else if(b.k==="refac") h+='<div class="plain">Aquellos hospitales que estén refacturando mayo/24 a PAMI (con nomenclador HPGD): por favor aguarden y NO envíen la facturación por tanda. Estamos esperando definiciones. Se avisará por este medio cuando se habilite.</div>';
+  else h+='<div class="plain">Se recuerda que el cierre de carga de atenciones de octubre opera el 12/11. Pasada esa fecha no se habilitan altas de comprobantes del período.</div>';
+
+  // acuse (e1+)
+  h+='<div class="acuse-line">'+IC.check+' Leído — registrado 10/11 14:32</div>';
+
+  // confirmación obligatoria (e2+ y mandatoria)
+  if(state.stage!=="e1" && b.mand){
+    if(ui.confirmed)
+      h+='<div class="confirm-box" style="border-color:#cfe6cf;background:#eef7ee"><div class="ct" style="color:#2d6b33">'+IC_inline(IC.check,'#4a9e4a')+' Confirmaste la lectura el 10/11 14:33.</div></div>';
+    else
+      h+='<div class="confirm-box"><div class="ct">'+IC_inline(IC.warn,'#e0922f')+' Esta comunicación requiere tu confirmación.</div>'+
+         '<span class="btn btn-suc" data-act="confirm">'+IC.check+' Confirmo que leí y comprendí</span></div>';
+  }
+
+  // respuesta (e2+)
+  if(state.stage!=="e1"){
+    h+='<div class="reply-box"><div class="rb-h">Responder / hacer una consulta</div>';
+    if(ui.replied)
+      h+='<div class="msg" style="background:#f6faf6;border-color:#cfe6cf"><div class="mh"><b>Vos</b><span class="num">ahora</span></div><div class="mt">Consulta enviada al Ministerio. Te responden por este mismo medio.</div></div>';
+    else
+      h+='<textarea placeholder="Escribí tu consulta..."></textarea><div class="reply-row"><span class="btn btn-pri" data-act="reply">'+IC.send+' Enviar</span></div>'+
+         '<div class="muted-note">Reemplaza el Google Form externo y el teléfono: la consulta queda ligada a esta notificación.</div>';
+    h+='</div>';
+  }
+  h+='</div></div>';
+  return h;
+}
+function capacFormateado(){
+  var T=[
+    {t:"Taller 1 — Integración SAMO-HSI",x:"Identificar, registrar, facturar, notificar y cobrar de forma óptima.",d:"Mié 18/11",hr:"9:00"},
+    {t:"Taller 2 — Facturación Electrónica SAMO",x:"Usos principales del sistema de facturación electrónica.",d:"Mar 17/11",hr:"9:00"},
+    {t:"Taller 3 — Gestión de cobros",x:"Armado de expedientes de gestión de cobros de facturas vencidas.",d:"Mar 10 y 24/11",hr:"11:00"},
+    {t:"Taller 4 — Nomenclador SAMO",x:"Recorrido completo y estrategias de recupero de costos.",d:"Jue 26/11",hr:"9:30",n:true}
+  ];
+  var h='<div class="talleres">'+T.map(function(t){
+    return '<div class="taller"><div class="tt">'+t.t+(t.n?' <span class="pill new">NUEVO</span>':'')+'</div>'+
+      '<div class="tx">'+t.x+'</div><div class="meta"><span class="pill">📅 '+t.d+'</span><span class="pill">⏰ '+t.hr+' hs</span></div></div>';
+  }).join('')+'</div>';
+  h+='<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
+     '<span class="btn btn-suc" data-act="inscribir">Inscribirme</span>'+
+     '<span class="attach">'+IC.pdf+' Cronograma_Noviembre.pdf</span></div>';
+  h+='<div class="muted-note">Consultas: Dpto. de Contralor Técnico Administrativo · (0221) 429-2897 / 429-2933</div>';
+  return h;
+}
+
+function callout(kind,ic,txt){
+  return '<div class="callout '+kind+'"><span class="ic">'+ic+'</span><div>'+txt+'</div></div>';
+}
+
+/* ---------- eventos ---------- */
+function wire(root){
+  // segmentos (siempre, fuera de root)
+  document.querySelectorAll('#segStage button').forEach(function(b){
+    b.onclick=function(){state.stage=b.dataset.stage;resetUi();render();};
+  });
+  document.querySelectorAll('#segRole button').forEach(function(b){
+    b.onclick=function(){state.role=b.dataset.role;resetUi();render();};
+  });
+  el('bellSlot').onclick=function(e){ if(e.target.closest('[data-act="bell"]')) toast("Abre la bandeja de notificaciones."); };
+
+  root.querySelectorAll('[data-notif]').forEach(function(li){
+    li.onclick=function(){ui.openNotif=li.dataset.notif;ui.confirmed=false;ui.replied=false;render();};
+  });
+  root.querySelectorAll('[data-ptab]').forEach(function(b){
+    b.onclick=function(){ui.ptab=b.dataset.ptab;render();};
+  });
+  root.querySelectorAll('[data-act]').forEach(function(x){
+    var a=x.dataset.act;
+    x.onclick=function(){
+      if(a==="closePopup"){ui.popupClosed=true;render();}
+      else if(a==="confirm"){ui.confirmed=true;render();toast("Confirmación registrada. El emisor ya lo ve como «Confirmada».");}
+      else if(a==="reply"){ui.replied=true;render();toast("Consulta enviada al Ministerio.");}
+      else if(a==="recordar")toast("Se reenvió el aviso a los establecimientos que no lo leyeron.");
+      else if(a==="inscribir")toast("Inscripción registrada. El Ministerio lo ve en el acuse.");
+    };
+  });
+}
+
+buildCtrl();render();
+</script>
+
+</body></html>

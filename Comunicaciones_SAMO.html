@@ -247,6 +247,9 @@ table.tbl.real th .ar{color:#c3c3c3;font-size:10px;margin-left:2px}
 .flatrow:last-child{border-bottom:none}
 .flatrow.alt{background:#f7f7f7}
 .flatrow.tt{color:#3a4b56}
+.modo-h{font-size:13px;font-weight:800;color:#2e6da4;text-transform:uppercase;letter-spacing:.04em;margin:10px 0 8px}
+.mock{border:1px solid #d7dce0;border-radius:7px;padding:16px;background:#fff;margin-bottom:6px}
+.mock .ctx{font-size:11.5px;color:#9aa0a6;font-style:italic;margin-bottom:10px}
 </style>
 
 <div class="shell">
@@ -563,14 +566,15 @@ function viewEmp(){
 }
 function empHoy(){
   var h='<span class="rolepill emp">● Empleado · receptor (H.I.Z. San Martín)</span>';
-  h+='<div class="stage-wrap">';
+  h+='<div class="view-h">Pantalla de Inicio del empleado</div>';
+  h+='<div class="view-sub">El Ministerio manda el aviso de dos formas. Así se ve cada una, hoy.</div>';
+
+  // ① CON Pop Up
+  h+='<div class="modo-h">① Con Pop Up</div>';
+  h+='<div class="stage-wrap mock" style="min-height:320px">';
   h+='<div class="inicio-h">Inicio</div><h3 style="font-weight:700;color:#444;margin-bottom:14px">¿En qué ámbito querés trabajar?</h3>'+
      '<div class="ambito"><div class="card2"><div class="t">Ambulatorio</div><div class="d">Consultas y atenciones programadas</div></div>'+
      '<div class="card2 g"><div class="t">Guardia</div><div class="d">Atenciones de urgencia</div></div></div>';
-  // modo SIN pop up: lista plana en el inicio (como se ve de verdad)
-  h+='<h3 class="flat-h">Notificaciones</h3><div class="flatnotifs">'+
-     FLAT_NOTIFS.map(function(n){return '<div class="flatrow tt alt">'+n.tit+'</div><div class="flatrow">'+n.msg+'</div>';}).join('')+
-     '</div>';
   if(!ui.popupClosed){
     h+='<div class="ov"><div class="popup">'+
        '<div class="ph">📌 CAPACITACIONES VIRTUALES 📅 NOVIEMBRE <span class="x" data-act="closePopup">×</span></div>'+
@@ -578,11 +582,20 @@ function empHoy(){
        '<div class="pf"><span class="btn btn-def" data-act="closePopup">Cerrar</span></div>'+
        '</div></div>';
   } else {
-    h+='<div class="muted-note">'+IC_inline(IC.warn,'#d9a')+' Se cerró el Pop Up. <b>No quedó ningún registro</b> de que lo viste. El otro aviso queda solo en la lista plana de arriba.</div>';
+    h+='<div class="muted-note">'+IC_inline(IC.warn,'#d9a')+' Se cerró el Pop Up. <b>No quedó ningún registro</b> de que lo viste.</div>';
   }
   h+='</div>';
   h+=callout("bad",IC.warn,"<b>Con Pop Up:</b> un modal con un único botón <b>Cerrar</b>. Si lo cerrás sin leer, se perdió — y el Ministerio nunca sabe si llegó.");
-  h+=callout("bad",IC.warn,"<b>Sin Pop Up:</b> el aviso aparece como la <b>lista plana</b> de arriba — solo título y mensaje, sin formato, perdida entre el contenido del Inicio.");
+
+  // ② SIN Pop Up
+  h+='<div class="modo-h">② Sin Pop Up</div>';
+  h+='<div class="mock">';
+  h+='<div class="ctx">En la pantalla de Inicio, entre las tarjetas y «Comprobantes sin presentar», aparece así:</div>';
+  h+='<h3 class="flat-h" style="margin-top:0">Notificaciones</h3><div class="flatnotifs">'+
+     FLAT_NOTIFS.map(function(n){return '<div class="flatrow tt alt">'+n.tit+'</div><div class="flatrow">'+n.msg+'</div>';}).join('')+
+     '</div>';
+  h+='</div>';
+  h+=callout("bad",IC.warn,"<b>Sin Pop Up:</b> el aviso aparece como esta <b>lista plana</b> — solo título y mensaje, sin formato, perdida entre el contenido del Inicio y fácil de pasar por alto.");
   return h;
 }
 function IC_inline(svg,color){return '<span style="display:inline-block;width:15px;height:15px;vertical-align:-2px">'+svg.replace('<svg','<svg fill="'+(color||'#999')+'"')+'</span>';}
